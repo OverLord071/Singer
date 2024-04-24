@@ -84,6 +84,12 @@ public class DocumentApplication : IDocumentApplication
 
     public async Task<DocumentDW> SaveDocument(DocumentDto documentDto)
     {
+        var existingDocument = await _context.Documents.FirstOrDefaultAsync(d => d.Id == documentDto.id_documento);
+        if (existingDocument != null)
+        {
+            throw new Exception("El documento ya ha sido cargado.");
+        }
+
         var token = await GetToken();
         string pathFile = await DownloadPdf(documentDto.url_documento, token);
         

@@ -23,8 +23,15 @@ public class DocumentController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> SaveDocument([FromBody] DocumentDto documentDto)
     {
-        var document = await _documentApplication.SaveDocument(documentDto);
-        return Ok();
+        try
+        {
+            var document = await _documentApplication.SaveDocument(documentDto);
+            return Ok(new { message = "Documento cargado" });
+        }
+        catch (Exception ex) 
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet("{email}")]
