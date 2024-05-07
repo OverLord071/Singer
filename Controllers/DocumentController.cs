@@ -26,7 +26,7 @@ public class DocumentController : ControllerBase
         try
         {
             var document = await _documentApplication.SaveDocument(documentDto);
-            return Ok(new { message = "Documento cargado" });
+            return Ok(new { message = "OK" });
         }
         catch (Exception ex) 
         {
@@ -53,5 +53,17 @@ public class DocumentController : ControllerBase
 
         var memory = new MemoryStream(document);
         return File(memory, "application/pdf");
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateDocumentIsSigned(string id)
+    {
+        var result = await _documentApplication.UpdateDocumentIsSigned(id);
+        if (!result)
+        {
+            return NotFound();
+        }
+
+        return Ok();
     }
 }

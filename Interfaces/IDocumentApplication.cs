@@ -10,4 +10,5 @@ public interface IDocumentApplication
     Task<string> DownloadPdf(string urlFile, string token);
     Task<List<DocumentInfo>> GetDocumentsByUser(string email, Func<string, string> createDocumentUrl);
     Task<byte[]> GetDocumentFile(string id);
+    Task<bool> UpdateDocumentIsSigned(string id);
 }

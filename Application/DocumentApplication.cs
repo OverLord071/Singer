@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Server.IIS.Core;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Singer.Domain;
@@ -73,7 +74,7 @@ public class DocumentApplication : IDocumentApplication
         var response = await client.GetAsync(urlFile);
         response.EnsureSuccessStatusCode();
 
-        var folderPath = @"C:\Users\Public\Documents\SignerDocuments";
+        var folderPath = @"G:\DocumentsSignerApp\SignerDocuments";
         Directory.CreateDirectory(folderPath);
 
         var pathFile = Path.Combine(folderPath, Guid.NewGuid().ToString() + ".pdf");
@@ -91,8 +92,17 @@ public class DocumentApplication : IDocumentApplication
         }
 
         var token = await GetToken();
-        string pathFile = await DownloadPdf(documentDto.url_documento, token);
-        
+        string pathFile;
+        try
+        {
+            pathFile = await DownloadPdf(documentDto.url_documento, token);
+        }
+        catch (Exception ex) 
+        {
+            throw new Exception($"No se descargo el documento");
+        }
+
+
         var userDW = await _context.UsersDw.FirstOrDefaultAsync(u => u.Email == documentDto.email);
         if (userDW == null)
         {
@@ -104,7 +114,7 @@ public class DocumentApplication : IDocumentApplication
             {
                 Recipient = documentDto.email,
                 Subject = "Documento por firmar",
-                Body = $"Tiene un documento por firmar. Por favor, acceda al siguiente enlace: "
+                Body = $"Tiene un documento por firmar. Por favor, acceda al siguiente enlace: <a href='https://capable-narwhal-1cc916.netlify.app'>aquí</a>"
             };
             _emailService.SendEmail(emailRequest);
         }
@@ -164,13 +174,13 @@ public class DocumentApplication : IDocumentApplication
             return null;
         }
 
-        var documents = await _context.Documents.Where(d => d.UserId == user.Id).ToListAsync();
+        var documents = await _context.Documents.Where(d => d.UserId == user.Id && d.IsSigned == false).ToListAsync();
 
         var documentInfos = new List<DocumentInfo>();
         foreach (var document in documents)
         {
             var url = createDocumentUrl(document.Id);
-            documentInfos.Add(new DocumentInfo { Url = url, IsSigned = document.IsSigned });
+            documentInfos.Add(new DocumentInfo { Id = document.Id , Title = document.DocumentType , Url = url, IsSigned = document.IsSigned , Date = document.Date});
         }
 
         return documentInfos;
@@ -186,5 +196,21 @@ public class DocumentApplication : IDocumentApplication
 
         var bytes = await File.ReadAllBytesAsync(document.PathFile);
         return bytes;
+    }
+
+    public async Task<bool> UpdateDocumentIsSigned(string id)
+    {
+        var document = await _context.Documents.FirstOrDefaultAsync(d => d.Id == id);
+        if(document == null)
+        { 
+            return false; 
+        }
+
+        document.IsSigned = true;
+        _context.Documents.Update(document);
+        await _context.SaveChangesAsync();
+
+        return true;
+
     }
 }
