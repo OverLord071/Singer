@@ -46,6 +46,20 @@ public class DWController : ControllerBase
         }
     }
 
+    [HttpGet("authenticateWithToken")]
+    public async Task<IActionResult> AuthenticateWithToken(string token)
+    {
+        try
+        {
+            var email = await _dwApplication.AuthentificateWithToken(token);
+            return Ok(email);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
     [HttpPost]
     [Route("sign-pdf")]
     public async Task<IActionResult> SingPdf(IFormFile certificateFile, string password, IFormFile pdfFile, string? reason, string? location, int page, int positionX, int positionY)

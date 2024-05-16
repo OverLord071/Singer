@@ -136,7 +136,7 @@ public class CertificateUtils
     {
         foreach (string currentAlias in store.Aliases)
         {
-            if (store.IsKeyEntry(currentAlias))
+            if (store.IsKeyEntry(currentAlias) && currentAlias.Contains("Signing Key"))
             {
                 return currentAlias;
             }

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Singer.Infrastructure;
 
@@ -11,9 +12,11 @@ using Singer.Infrastructure;
 namespace Singer.Migrations
 {
     [DbContext(typeof(SignerDbContext))]
-    partial class SignerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240510165441_UpdateUserDW")]
+    partial class UpdateUserDW
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

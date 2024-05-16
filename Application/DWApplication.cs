@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using Singer.Domain;
 using Singer.Infrastructure;
 using Singer.Interfaces;
-using DocuWare.Platform.ServerClient;
 using IMessage = Singer.Interfaces.IMessage;
 using Singer.Utilities.Certificate;
 
@@ -239,5 +238,17 @@ public class DWApplication : IDWApplication
         await _context.SaveChangesAsync();
 
         return true;
+    }
+
+    public async Task<string> AuthentificateWithToken(string token)
+    {
+        var user = await _context.UsersDw.FirstOrDefaultAsync(u => u.Token == token);
+
+        if (user == null || user.TokenExpiration < DateTime.UtcNow) 
+        {
+            throw new Exception("Token inválido o expirado.");
+        }
+
+        return user.Email;
     }
 }

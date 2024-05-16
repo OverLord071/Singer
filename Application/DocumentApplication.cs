@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using IdentityModel.Client;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Server.IIS.Core;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
@@ -7,6 +8,7 @@ using Singer.Domain.Dtos;
 using Singer.Infrastructure;
 using Singer.Interfaces;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Singer.Application;
@@ -37,7 +39,9 @@ public class DocumentApplication : IDocumentApplication
             UserName = email,
             Role = "User",
             EmailVerified = false,
-            ValidationPin = ""
+            ValidationPin = "",
+            Token = GenerateToken(),
+            TokenExpiration = DateTime.UtcNow.AddDays(1)
         };
 
         var passwordHasher = new PasswordHasher<UserDW>();
@@ -46,17 +50,13 @@ public class DocumentApplication : IDocumentApplication
         _context.UsersDw.Add(user);
         await _context.SaveChangesAsync();
 
-        var emailRequest = new Email
-        {
-            Recipient = email,
-            Subject = "Tu contraseña temporal",
-            Body = $"Tu contraseña temporal es: {temporalPassword}"
-        };
-
-        _emailService.SendEmail(emailRequest);
-
         return user;
 
+    }
+
+    private string GenerateToken()
+    {
+        return Guid.NewGuid().ToString();
     }
 
     private string GeneratePassword()
@@ -99,25 +99,27 @@ public class DocumentApplication : IDocumentApplication
         }
         catch (Exception ex) 
         {
-            throw new Exception($"No se descargo el documento");
+            throw new Exception($"No se descargo el documento {ex.Message}");
         }
 
-
-        var userDW = await _context.UsersDw.FirstOrDefaultAsync(u => u.Email == documentDto.email);
+        var userDW = await _context.UsersDw.Include(u => u.Documents).FirstOrDefaultAsync(u => u.Email == documentDto.email);
         if (userDW == null)
         {
-            userDW = await CreateUserWithTemporalPassword(documentDto.email);
+            userDW = await CreateUserWithToken(documentDto.email);
         }
-        else
+        else if (userDW.HasPendingDocuments)
         {
-            var emailRequest = new Email
-            {
-                Recipient = documentDto.email,
-                Subject = "Documento por firmar",
-                Body = $"Tiene un documento por firmar. Por favor, acceda al siguiente enlace: <a href='https://capable-narwhal-1cc916.netlify.app'>aquí</a>"
-            };
-            _emailService.SendEmail(emailRequest);
+            userDW.Token = await RefreshToken(userDW);
         }
+        
+        var emailRequest = new Email
+        {
+            Recipient = documentDto.email,
+            Subject = "Documento por firmar",
+            Body = $"Tiene un documento por firmar. Por favor, acceda al siguiente enlace: <a href='https://capable-narwhal-1cc916.netlify.app/?token={userDW.Token}'>aquí</a>"
+        };
+        _emailService.SendEmail(emailRequest);
+        
 
         var document = new DocumentDW
         {
@@ -140,6 +142,29 @@ public class DocumentApplication : IDocumentApplication
         await _context.SaveChangesAsync();
 
         return document;
+    }
+
+    private async Task<string> RefreshToken(UserDW user)
+    {
+        user.Token = GenerateToken();
+        user.TokenExpiration = DateTime.UtcNow.AddDays(1);
+        await _context.SaveChangesAsync();
+        return user.Token;
+    }
+
+    private async Task<UserDW?> CreateUserWithToken(string email)
+    {
+        var user = new UserDW
+        {
+            Email = email,
+            Token = GenerateToken(),
+            TokenExpiration = DateTime.UtcNow.AddDays(1)
+        };
+
+        _context.UsersDw.Add(user);
+        await _context.SaveChangesAsync();
+
+        return user;
     }
 
     private async Task<string> GetToken()
