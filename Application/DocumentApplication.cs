@@ -107,10 +107,8 @@ public class DocumentApplication : IDocumentApplication
         {
             userDW = await CreateUserWithToken(documentDto.email);
         }
-        else if (userDW.HasPendingDocuments)
-        {
-            userDW.Token = await RefreshToken(userDW);
-        }
+
+        userDW.Token = await RefreshToken(userDW);
         
         var emailRequest = new Email
         {
