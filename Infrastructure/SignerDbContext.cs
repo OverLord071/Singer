@@ -13,4 +13,5 @@ public class SignerDbContext : DbContext
     public DbSet<UserDW> UsersDw { get; set; }
 
     public DbSet<DocumentDW> Documents { get; set; }
+    public DbSet<SmtpConfig> SmtpConfigs { get; set; }
 }

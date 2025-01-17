@@ -8,7 +8,8 @@ public class DocumentDto
     public string archivador { get; set; }
     public string guid_archivador { get; set; }
     public string email { get; set; }
+    public string full_name { get; set; }
     public string tipo_documento { get; set; }
-    public string fecha { get; set; }
+    public DateTime fecha { get; set; }
     public string url_documento { get; set; }
 }

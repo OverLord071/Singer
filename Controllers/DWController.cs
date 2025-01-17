@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Singer.Application;
 using Singer.Domain;
+using Singer.Domain.Dtos;
 using Singer.Interfaces;
 
 namespace Singer.Controllers;
@@ -18,11 +19,11 @@ public class DWController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register(UserDW userDW)
+    public async Task<IActionResult> Register(CreateUserDto createUserDto)
     {
         try
         {
-            var newUser = await _dwApplication.CreateUserDW(userDW);
+            var newUser = await _dwApplication.CreateUserDW(createUserDto);
             return CreatedAtAction(nameof(Register), newUser);
         }
         catch (Exception ex)
@@ -60,6 +61,20 @@ public class DWController : ControllerBase
         }
     }
 
+    [HttpGet("verifyPin")]
+    public async Task<IActionResult> VerifyCode(string email, string code)
+    {
+        try
+        {
+            var result = await _dwApplication.VerifyCode(email, code);
+            return Ok(result);
+        }
+        catch (Exception ex) 
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
     [HttpPost]
     [Route("sign-pdf")]
     public async Task<IActionResult> SingPdf(IFormFile certificateFile, string password, IFormFile pdfFile, string? reason, string? location, int page, int positionX, int positionY)
@@ -84,6 +99,30 @@ public class DWController : ControllerBase
                 return StatusCode(500, "Contraseña incorrecta o archivo corrupto");
             }
             return StatusCode(500, $"Error al firmar: {ex.Message}");
+        }
+    }
+
+    [HttpPut("{documentId}/reject")]
+    public async Task<IActionResult> RejectDocument(string documentId, [FromBody] RejectDocumentRequest request)
+    {
+        if (string.IsNullOrEmpty(request.Reason))
+        {
+            return BadRequest("El motivo del rechazo es requerido.");
+        }
+
+        try
+        {
+            await _dwApplication.RejectDocumentAsync(documentId, request.Reason);
+            return NoContent();
+
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, "Se produjo un error al procesar la solicitud.");
         }
     }
 
@@ -168,6 +207,88 @@ public class DWController : ControllerBase
         catch (Exception ex)
         {
             return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPut("changeStatus/{id}")]
+    public async Task<IActionResult> ChangeStatus(Guid id)
+    {
+        var user = await _dwApplication.ChangeStatusUser(id);
+
+        if (user == null)
+        {
+            return NotFound(new { message = "Usuario no encontrado"});
+        }
+
+        return Ok(new
+        {
+            id = user.Id,
+            isActive = user.IsActive,
+            message = "Estado del usuario actualizado exitosamente"
+        });
+    }
+
+    [HttpGet("getAllUsers")]
+    public async Task<IActionResult> GetAllUsers() 
+    {
+        var users = await _dwApplication.GetAllUsers();
+        return Ok(users);
+    }
+
+    [HttpPost("sendPasswordLink")]
+    public async Task<IActionResult> SendPasswordLink([FromBody] PasswordRecoveryRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return BadRequest("El email es requerido.");
+        }
+
+        try
+        {
+            await _dwApplication.SendLinkRecoveryPassword(request.Email);
+            return Ok("Se ha enviado el enlace de recuperación.");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Error al enviar el enlace de recuperación: {ex.Message}");
+        }
+    }
+
+    [HttpGet("validateToken")]
+    public async Task<IActionResult> ValidateToken([FromQuery] string token)
+    {
+        if (string.IsNullOrEmpty(token))
+        {
+            return BadRequest("El token es obligatorio");
+        }
+
+        try
+        {
+            await _dwApplication.ValidateToken(token);
+            return Ok(new { message = "El token es válido." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("changePasswordWithToken")]
+    public async Task<IActionResult> ChangePasswordWithToken([FromBody] ChangePasswwordRequest request)
+    {
+        if (string.IsNullOrEmpty(request.Token) || string.IsNullOrEmpty(request.Password))
+        {
+            return BadRequest("El token y la nueva contraseña son obligatorias.");
+        }
+
+        try
+        {
+            await _dwApplication.ChangePasswordWithToken(request.Token, request.Password);
+            return Ok(new { message = "Contraseña cambiada exitosamente." });
+        }
+        catch (InvalidOperationException ex) 
+        {
+            return BadRequest( new { error = ex.Message });
         }
     }
 

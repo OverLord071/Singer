@@ -7,6 +7,7 @@ using Singer.Infrastructure;
 using Singer.Interfaces;
 using IMessage = Singer.Interfaces.IMessage;
 using Singer.Utilities.Certificate;
+using Singer.Domain.Dtos;
 
 namespace Singer.Application;
 
@@ -67,10 +68,27 @@ public class DWApplication : IDWApplication
         await _context.SaveChangesAsync();
     }
 
-    public async Task<UserDW> CreateUserDW(UserDW userDW)
+    public async Task<UserDW> CreateUserDW(CreateUserDto createUserDto)
     {
+        if (await _context.UsersDw.AnyAsync(u => u.Email == createUserDto.Email))
+        {
+            throw new Exception("Email en uso.");
+        }
+
+        var userDW = new UserDW
+        {
+            Id = Guid.NewGuid(),
+            CI = createUserDto.CI,
+            Name = createUserDto.Name,
+            Email = createUserDto.Email,
+            UserName = createUserDto.UserName,
+            Role = createUserDto.Role,
+            EmailVerified = false,
+            ValidationPin = GenerateValidationPin()
+        };
+
         var passwordHasher = new PasswordHasher<UserDW>();
-        userDW.Password = passwordHasher.HashPassword(userDW, userDW.Password);
+        userDW.Password = passwordHasher.HashPassword(userDW, createUserDto.Password);
 
         _context.UsersDw.Add(userDW);
         await _context.SaveChangesAsync();
@@ -78,6 +96,12 @@ public class DWApplication : IDWApplication
         await SendPinValidation(userDW.Email);
 
         return userDW;
+    }
+
+    private string GenerateValidationPin()
+    {
+        var random = new Random();
+        return random.Next(100000, 999999).ToString();
     }
 
     public async Task<SignerCertificate> GetUserById(string id)
@@ -250,5 +274,134 @@ public class DWApplication : IDWApplication
         }
 
         return user.Email;
+    }
+
+    public async Task RejectDocumentAsync(string documentId, string reason)
+    {
+        var document = await _context.Documents.FirstOrDefaultAsync(d => d.Id == documentId);
+
+        if (document == null) 
+        {
+            throw new KeyNotFoundException("El documento no fue encontrado.");
+        }
+
+        document.SetStatus(StatusDocument.Rechazado, reason);
+
+        _context.Documents.Update(document);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<bool> VerifyCode(string email, string code)
+    {
+        var user = await _context.UsersDw.FirstOrDefaultAsync(e => e.Email == email);
+
+        if (user == null || user.ValidationPin != code) 
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    public async Task<UserDW?> ChangeStatusUser(Guid id)
+    {
+        var user = await _context.UsersDw.FirstOrDefaultAsync(u => u.Id == id);
+
+        if (user == null) 
+        {
+            return null;
+        }
+
+        user.IsActive = !user.IsActive;
+
+        await _context.SaveChangesAsync();
+
+        return user;
+    }
+
+    public async Task<List<UserDWDto>> GetAllUsers()
+    {
+        var users = await _context.UsersDw
+            .Select(user => new UserDWDto
+            {
+                Id = user.Id,
+                Name = user.Name,
+                Email = user.Email,
+                DateRegister = user.DateRegister.ToString("yyyy-MM-dd"),
+                IsActive = user.IsActive
+            })
+            .ToListAsync();
+
+        return users;
+    }
+
+    public async Task SendLinkRecoveryPassword(string email)
+    {
+        var user = await _context.UsersDw.FirstOrDefaultAsync(u => u.Email == email);
+        
+        if (user == null) 
+        {
+            return;
+        }
+
+        var recoveryToken = GenerateRecoveryToken();
+        var expirationDate = DateTime.Now.AddHours(1);
+
+        user.PasswordRecoveryToken = recoveryToken;
+        user.PasswordRecoveryTokenExpiration = expirationDate;
+        await _context.SaveChangesAsync();
+
+        var recoveryLink = $"http://localhost:3000/reset-password?token={recoveryToken}";
+        var emailRequest = new Email
+        {
+            Recipient = email,
+            Subject = "Recuperación de Contraseña",
+            Body = $"Hola {user.Name}, \n\n" + 
+                    $"Puedes cambiar tu contraseña usando el siguiente enlace (expira en 1 hora):\n" +
+                    $"<a href='{recoveryLink}'>Recuperar Contraseña<a/>"
+        };
+
+        _emailService.SendEmail(emailRequest);
+
+    }
+
+    private string GenerateRecoveryToken()
+    {
+        return Guid.NewGuid().ToString();
+    }
+
+    public async Task ValidateToken(string token)
+    {
+        var user = await _context.UsersDw.FirstOrDefaultAsync(u => u.PasswordRecoveryToken == token);
+        if (user == null) 
+        {
+            throw new InvalidOperationException("El token inválido.");
+        }
+
+        if (DateTime.Now > user.PasswordRecoveryTokenExpiration)
+        {
+            throw new InvalidOperationException("El token ha expirado.");
+        }
+    }
+
+    public async Task ChangePasswordWithToken(string token, string password)
+    {
+        var user = await _context.UsersDw.FirstOrDefaultAsync(u => u.PasswordRecoveryToken == token);
+
+        if (user == null)
+        {
+            throw new InvalidOperationException("El token inválido.");
+        }
+
+        if (DateTime.Now > user.PasswordRecoveryTokenExpiration)
+        {
+            throw new InvalidOperationException("El token ha expirado.");
+        }
+
+        var passwordHasher = new PasswordHasher<UserDW>();
+        user.Password = passwordHasher.HashPassword(user, password);
+
+        await _context.SaveChangesAsync();
+
     }
 }

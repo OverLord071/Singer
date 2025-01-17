@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Singer.Domain.Dtos;
+using System.ComponentModel.DataAnnotations;
 
 namespace Singer.Domain;
 
@@ -15,10 +16,6 @@ public class UserDW
     [StringLength(100)]
     public string Email { get; set; }
 
-    public string Certificate { get; set; }
-
-    public string PinCertificate { get; set; }
-
     [Required]
     public string UserName { get; set; }
 
@@ -26,19 +23,15 @@ public class UserDW
     public string Password { get; set; }
 
     [Required]
-    public string Role { get; set; }
+    public UserRole Role { get; set; }
 
     public string ValidationPin { get; set; }
     public bool EmailVerified { get; set; }
-    public virtual ICollection<DocumentDW> Documents { get; set; }
-    public string Token { get; set; }
-    public DateTime TokenExpiration { get; set; }
-
-    public bool HasPendingDocuments
-    {
-        get
-        {
-            return Documents.Any(d => !d.IsSigned);
-        }
-    }
+    public virtual ICollection<DocumentDW>? Documents { get; set; }
+    public string? Token { get; set; }
+    public DateTime? TokenExpiration { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime DateRegister { get; set; }
+    public string? PasswordRecoveryToken { get; set; }
+    public DateTime? PasswordRecoveryTokenExpiration { get; set; }
 }

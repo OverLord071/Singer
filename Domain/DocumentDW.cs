@@ -17,10 +17,30 @@ public class DocumentDW
     public string Archiver { get; set; }
     public string ArchiverGuid { get; set; }
     public string DocumentType { get; set; }
-    public string Date { get; set; }
+    public DateTime Date { get; set; }
+    public DateTime ExpirationDate { get; set; }
     public string DocumentUrl { get; set; }
+    public StatusDocument StatusDocument { get; set; }
+    public string? Reason { get; set; }
 
     [ForeignKey("UserId")]
     public UserDW User { get; set; }
 
+    public void SetStatus(StatusDocument status, string? reason = null)
+    {
+        StatusDocument = status;
+
+        if (status == StatusDocument.Rechazado)
+        {
+            if (string.IsNullOrEmpty(reason))
+            {
+                throw new ArgumentException("Motivo de rechazo requerido.");
+            }
+            Reason = reason;
+        }
+        else
+        {
+            Reason = null;
+        }
+    }
 }

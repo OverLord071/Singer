@@ -29,25 +29,20 @@ var secretsManagerConfig = new AmazonSecretsManagerConfig
 builder.Services.AddSingleton<CertificateUtils>();
 
 builder.Services.AddSingleton<AmazonSecretsManagerClient>(sp => new AmazonSecretsManagerClient(secretsManagerConfig));
-
 builder.Services.AddTransient<IUserApplication, UserApplication>();
-
 builder.Services.AddTransient<ISignerApplication, SignerApplication>();
-
 builder.Services.AddTransient<IDWApplication, DWApplication>();
-
 builder.Services.AddTransient<IDocumentApplication, DocumentApplication>();
-
 builder.Services.AddTransient<IMessage, EmailApplication>();
-
 builder.Services.AddSingleton<IActionContextAccessor, ActionContextAccessor>();
-
 builder.Services.Configure<GmailSettings>(builder.Configuration.GetSection("Email"));
+builder.Services.AddTransient<ISmtpConfigService, SmtpConfigService>();
+
 
 var configuration = builder.Configuration;
 
 builder.Services.AddDbContext<SignerDbContext>(options =>
-    options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(configuration.GetConnectionString("DB")));
 
 var secret = builder.Configuration["Jwt:Key"];
 
@@ -75,7 +70,7 @@ builder.Services.AddHttpContextAccessor();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsProduction())
+if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();

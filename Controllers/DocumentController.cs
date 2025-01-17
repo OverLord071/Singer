@@ -28,7 +28,21 @@ public class DocumentController : ControllerBase
             var document = await _documentApplication.SaveDocument(documentDto);
             return Ok(new { message = "OK" });
         }
-        catch (Exception ex) 
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("resend-email/{documentId}")]
+    public async Task<IActionResult> ResendEmail(string documentId)
+    {
+        try
+        {
+            await _documentApplication.ResendEmailForSignature(documentId);
+            return Ok(new { message = "Correo reenviado exitosamente." });
+        }
+        catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
         }
@@ -55,6 +69,13 @@ public class DocumentController : ControllerBase
         return File(memory, "application/pdf");
     }
 
+    [HttpGet("GetAllDocuments")]
+    public async Task<IActionResult> GetAllDocuments()
+    {
+        var documents = await _documentApplication.GetAllDocuments(id => Url.Action("GetDocumentFile", "Document", new { id = id }, Request.Scheme));
+        return Ok(documents);
+    }
+
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateDocumentIsSigned(string id)
     {
@@ -65,5 +86,17 @@ public class DocumentController : ControllerBase
         }
 
         return Ok();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteDocument(string id)
+    {
+        var result = await _documentApplication.DeleteDocument(id);
+        if (!result)
+        {
+            return NotFound("Documento no encontrado");
+        }
+
+        return NoContent();
     }
 }

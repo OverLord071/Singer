@@ -11,4 +11,7 @@ public interface IDocumentApplication
     Task<List<DocumentInfo>> GetDocumentsByUser(string email, Func<string, string> createDocumentUrl);
     Task<byte[]> GetDocumentFile(string id);
     Task<bool> UpdateDocumentIsSigned(string id);
+    Task<List<DocumentInfo>> GetAllDocuments(Func<string, string> createDocumentUrl);
+    Task ResendEmailForSignature(string documentId);
+    Task<bool> DeleteDocument(string documentId);
 }
