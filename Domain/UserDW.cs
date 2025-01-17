@@ -27,11 +27,15 @@ public class UserDW
 
     public string ValidationPin { get; set; }
     public bool EmailVerified { get; set; }
-    public virtual ICollection<DocumentDW>? Documents { get; set; }
-    public string? Token { get; set; }
-    public DateTime? TokenExpiration { get; set; }
-    public bool IsActive { get; set; }
-    public DateTime DateRegister { get; set; }
-    public string? PasswordRecoveryToken { get; set; }
-    public DateTime? PasswordRecoveryTokenExpiration { get; set; }
+    public virtual ICollection<DocumentDW> Documents { get; set; }
+    public string Token { get; set; }
+    public DateTime TokenExpiration { get; set; }
+
+    public bool HasPendingDocuments
+    {
+        get
+        {
+            return Documents.Any(d => !d.IsSigned);
+        }
+    }
 }
